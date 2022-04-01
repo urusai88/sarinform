@@ -18,11 +18,25 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => context.read<NewsFeedProvider>().load());
+    Future.microtask(_asyncInitState);
+  }
+
+  Future<void> _showErrorPopup() async {
+    await showDialog(context: context, builder: (_) => const AlertDialog(title: Text('Не удалось загрузить данные')));
+  }
+
+  Future<void> _asyncInitState() async {
+    final result = await context.read<NewsFeedProvider>().load();
+    if (result == LoadResult.errorWithSuccessCache) {
+      await _showErrorPopup();
+    }
   }
 
   Future<void> _onRefresh() async {
-    context.read<NewsFeedProvider>().refresh();
+    final result = await context.read<NewsFeedProvider>().refresh();
+    if (!result) {
+      await _showErrorPopup();
+    }
   }
 
   @override

@@ -4,6 +4,13 @@ import 'package:hive/hive.dart';
 import '../../data/data.dart';
 import '../domain.dart';
 
+enum LoadResult {
+  empty,
+  success,
+  error,
+  errorWithSuccessCache,
+}
+
 class NewsFeedProvider extends ChangeNotifier {
   NewsFeedProvider({required this.newsRepository});
 
@@ -19,10 +26,13 @@ class NewsFeedProvider extends ChangeNotifier {
 
   Box<NewsEntity> get box => Hive.box<NewsEntity>('news');
 
-  Future<void> load({bool useCache = true}) async {
-    if (isLoading || isRefreshing || isLoadingMore || isLoad) return;
+  /// Если [useCache] true, то при успешной загрузке сущностей из кэша и неуспешном обновлении сущностей с сервера,
+  /// флаг [isError] не выставляется
+  Future<LoadResult> load({bool useCache = true}) async {
+    if (isLoading || isRefreshing || isLoadingMore || isLoad) return LoadResult.empty;
 
-    if (box.isNotEmpty && useCache) {
+    final usingCache = box.isNotEmpty && useCache;
+    if (usingCache) {
       items = box.values.toList();
       isLoad = true;
     } else {
@@ -34,13 +44,17 @@ class NewsFeedProvider extends ChangeNotifier {
     try {
       items = await newsRepository.getList();
       isLoad = true;
+      return LoadResult.success;
     } catch (e) {
-      isError = true;
+      if (!usingCache) {
+        isError = true;
+        return LoadResult.error;
+      }
+      return LoadResult.errorWithSuccessCache;
     } finally {
       isLoading = false;
       notifyListeners();
-      await box.clear();
-      await box.addAll(items);
+      await _store();
     }
   }
 
@@ -64,20 +78,30 @@ class NewsFeedProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> refresh() async {
-    if (isLoading || isRefreshing || isLoadingMore) return;
+  Future<bool> refresh() async {
+    if (isLoading || isRefreshing || isLoadingMore) return true;
 
     isRefreshing = true;
     notifyListeners();
 
     try {
-      items = await newsRepository.getList();
+      final items = await newsRepository.getList();
+      this.items = items;
       hasMore = true;
+      return true;
     } catch (e) {
-      isError = true;
+      return false;
     } finally {
       isRefreshing = false;
       notifyListeners();
+      await _store();
+    }
+  }
+
+  Future<void> _store() async {
+    if (items.isNotEmpty) {
+      await box.clear();
+      await box.addAll(items);
     }
   }
 }
