@@ -34,7 +34,8 @@ class _FeedScreenState extends State<FeedScreen> {
 
   Future<void> _onRefresh() async {
     final prov = context.read<NewsFeedProvider>();
-    final isLoad = prov.isLoad;
+    final state = prov.value;
+    final isLoad = state is NewsFeedStateLoad;
     final result = await prov.refresh();
     if (!result && isLoad) {
       await _showErrorPopup();
@@ -43,13 +44,13 @@ class _FeedScreenState extends State<FeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final newsFeedProvider = context.watch<NewsFeedProvider>();
+    final state = context.watch<NewsFeedProvider>().value;
 
     Widget child;
-    if (newsFeedProvider.isError) {
+    if (state is NewsFeedStateError) {
       child = const ErrorView();
-    } else if (newsFeedProvider.isLoad) {
-      child = FeedScreenListView(items: newsFeedProvider.items);
+    } else if (state is NewsFeedStateWithItems) {
+      child = FeedScreenListView(state: state);
     } else {
       child = const LoadingView();
     }
@@ -65,19 +66,18 @@ class _FeedScreenState extends State<FeedScreen> {
 }
 
 class FeedScreenListView extends StatelessWidget {
-  const FeedScreenListView({Key? key, required this.items}) : super(key: key);
+  const FeedScreenListView({Key? key, required this.state}) : super(key: key);
 
-  final List<NewsEntity> items;
+  final NewsFeedStateWithItems state;
 
   @override
   Widget build(BuildContext context) {
-    final prov = context.watch<NewsFeedProvider>();
-    var itemCount = items.length;
+    var itemCount = state.items.length;
     var banner = false;
-    if (prov.hasMore) {
+    if (state.hasMore) {
       itemCount++;
     }
-    if (items.length >= 5) {
+    if (state.items.length >= 5) {
       itemCount++;
       banner = true;
     }
@@ -87,8 +87,8 @@ class FeedScreenListView extends StatelessWidget {
       itemCount: itemCount,
       separatorBuilder: (_, __) => const Divider(),
       itemBuilder: (context, index) {
-        if (prov.hasMore && index == itemCount - 1) {
-          if (!prov.isLoadingMore) {
+        if (state.hasMore && index == itemCount - 1) {
+          if (state is! NewsFeedStateLoadingMore) {
             Future.microtask(() => context.read<NewsFeedProvider>().loadMore());
           }
           return const LoadingView(padding: EdgeInsets.symmetric(vertical: 32));
@@ -101,7 +101,7 @@ class FeedScreenListView extends StatelessWidget {
           }
         }
 
-        final item = items[index];
+        final item = state.items[index];
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: GestureDetector(

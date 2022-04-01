@@ -11,98 +11,116 @@ enum LoadResult {
   errorWithSuccessCache,
 }
 
-class NewsFeedProvider extends ChangeNotifier {
-  NewsFeedProvider({required this.newsRepository});
+abstract class NewsFeedState {
+  const NewsFeedState();
+}
+
+class NewsFeedStateInitial extends NewsFeedState {
+  const NewsFeedStateInitial();
+}
+
+class NewsFeedStateLoading extends NewsFeedState {
+  const NewsFeedStateLoading();
+}
+
+class NewsFeedStateError extends NewsFeedState {
+  const NewsFeedStateError();
+}
+
+abstract class NewsFeedStateWithItems extends NewsFeedState {
+  const NewsFeedStateWithItems({required this.items, required this.hasMore});
+
+  final List<NewsEntity> items;
+  final bool hasMore;
+}
+
+class NewsFeedStateLoad extends NewsFeedStateWithItems {
+  const NewsFeedStateLoad({required List<NewsEntity> items, required bool hasMore})
+      : super(items: items, hasMore: hasMore);
+}
+
+class NewsFeedStateRefreshing extends NewsFeedStateWithItems {
+  const NewsFeedStateRefreshing({required List<NewsEntity> items, required bool hasMore})
+      : super(items: items, hasMore: hasMore);
+}
+
+class NewsFeedStateLoadingMore extends NewsFeedStateWithItems {
+  const NewsFeedStateLoadingMore({required List<NewsEntity> items, required bool hasMore})
+      : super(items: items, hasMore: hasMore);
+}
+
+class NewsFeedProvider extends ValueNotifier<NewsFeedState> {
+  NewsFeedProvider({required this.newsRepository}) : super(const NewsFeedStateInitial());
 
   final NewsRepository newsRepository;
-
-  var isError = false;
-  var isLoading = false;
-  var isRefreshing = false;
-  var isLoad = false;
-  var isLoadingMore = false;
-  var hasMore = true;
-  var items = <NewsEntity>[];
 
   Box<NewsEntity> get box => Hive.box<NewsEntity>('news');
 
   /// Если [useCache] true, то при успешной загрузке сущностей из кэша и неуспешном обновлении сущностей с сервера,
   /// флаг [isError] не выставляется
   Future<LoadResult> load({bool useCache = true}) async {
-    if (isLoading || isRefreshing || isLoadingMore || isLoad) return LoadResult.empty;
+    if (value is! NewsFeedStateInitial) return LoadResult.empty;
 
     final usingCache = box.isNotEmpty && useCache;
     if (usingCache) {
-      items = box.values.toList();
-      isLoad = true;
+      value = NewsFeedStateLoad(items: box.values.toList(), hasMore: true);
     } else {
-      isLoading = true;
-      isError = false;
+      value = const NewsFeedStateLoading();
     }
-    notifyListeners();
 
     try {
-      items = await newsRepository.getList();
-      isLoad = true;
+      value = NewsFeedStateLoad(items: await newsRepository.getList(), hasMore: true);
+      await _store();
       return LoadResult.success;
     } catch (e) {
       if (!usingCache) {
-        isError = true;
+        value = const NewsFeedStateError();
         return LoadResult.error;
       }
       return LoadResult.errorWithSuccessCache;
-    } finally {
-      isLoading = false;
-      notifyListeners();
-      await _store();
     }
   }
 
   Future<void> loadMore() async {
-    if (isLoading || isRefreshing || isLoadingMore || !hasMore) return;
-
-    isLoadingMore = true;
-    notifyListeners();
+    final loadState = value;
+    if (loadState is! NewsFeedStateLoad) return;
+    final loadingMoreState = value = NewsFeedStateLoadingMore(items: loadState.items, hasMore: loadState.hasMore);
 
     try {
-      final resp = await newsRepository.getList(from: AppUtils.rawDateTime(items.last.date));
+      final resp = await newsRepository.getList(from: AppUtils.rawDateTime(loadingMoreState.items.last.date));
       if (resp.isEmpty) {
-        hasMore = false;
-        return;
+        value = NewsFeedStateLoad(items: loadingMoreState.items, hasMore: false);
+      } else {
+        value = NewsFeedStateLoad(items: List<NewsEntity>.of(loadingMoreState.items)..addAll(resp), hasMore: true);
       }
-      items.addAll(resp);
     } catch (_) {
-    } finally {
-      isLoadingMore = false;
-      notifyListeners();
+      value = loadState;
     }
   }
 
   Future<bool> refresh() async {
-    if (isLoading || isRefreshing || isLoadingMore) return true;
-
-    isRefreshing = true;
-    notifyListeners();
+    final loadState = value;
+    if (loadState is! NewsFeedStateLoad && loadState is! NewsFeedStateError) return true;
+    if (loadState is NewsFeedStateLoad) {
+      value = NewsFeedStateRefreshing(items: loadState.items, hasMore: loadState.hasMore);
+    }
 
     try {
-      items = await newsRepository.getList();
-      hasMore = true;
-      isLoad = true;
-      isError = false;
+      value = NewsFeedStateLoad(items: await newsRepository.getList(), hasMore: true);
+      await _store();
       return true;
     } catch (e) {
+      value = loadState;
       return false;
-    } finally {
-      isRefreshing = false;
-      notifyListeners();
-      await _store();
     }
   }
 
   Future<void> _store() async {
-    if (items.isNotEmpty) {
+    final loadState = value;
+    if (loadState is! NewsFeedStateLoad) return;
+    if (loadState.items.isNotEmpty) {
       await box.clear();
-      await box.addAll(items);
+      await box.addAll(loadState.items);
     }
   }
 }
