@@ -85,9 +85,10 @@ class NewsFeedProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final items = await newsRepository.getList();
-      this.items = items;
+      items = await newsRepository.getList();
       hasMore = true;
+      isLoad = true;
+      isError = false;
       return true;
     } catch (e) {
       return false;

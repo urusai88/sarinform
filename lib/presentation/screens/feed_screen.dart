@@ -33,8 +33,10 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Future<void> _onRefresh() async {
-    final result = await context.read<NewsFeedProvider>().refresh();
-    if (!result) {
+    final prov = context.read<NewsFeedProvider>();
+    final isLoad = prov.isLoad;
+    final result = await prov.refresh();
+    if (!result && isLoad) {
       await _showErrorPopup();
     }
   }
