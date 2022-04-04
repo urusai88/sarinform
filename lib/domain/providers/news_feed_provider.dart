@@ -51,12 +51,8 @@ class NewsFeedProvider extends ValueNotifier<NewsFeedState> {
   }
 
   Future<void> loadMore() async {
-    var s = value.maybeMap(
-      withItems: (s) => s,
-      orElse: (_) => null,
-    );
+    final s = value.asWithItems;
     if (s == null) return;
-
     final next = value = NewsFeedState.loadingMore(items: s.items, hasMore: s.hasMore) as WithItems;
     try {
       final resp = await newsRepository.getList(from: AppUtils.rawDateTime(next.items.last.date));
