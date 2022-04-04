@@ -71,24 +71,13 @@ class NewsFeedProvider extends ValueNotifier<NewsFeedState> {
   }
 
   Future<bool> refresh() async {
+    if (!value.isError && !value.isLoad) return true;
     final s = value;
-    final goNext = s.maybeMap(
-      error: (_) => true,
-      withItems: (s) {
-        return s.maybeMap(
-          load: (s) {
-            value = NewsFeedState.refreshing(items: s.items, hasMore: s.hasMore);
-            return true;
-          },
-          orElse: (_) => false,
-        );
+    s.maybeWhen(
+      load: (s) {
+        value = NewsFeedState.refreshing(items: s.items, hasMore: s.hasMore);
       },
-      orElse: (_) => false,
     );
-
-    if (!goNext) {
-      return true;
-    }
 
     try {
       value = NewsFeedState.load(items: await newsRepository.getList(), hasMore: true);
@@ -102,12 +91,10 @@ class NewsFeedProvider extends ValueNotifier<NewsFeedState> {
 
   Future<void> _store() async {
     await value.maybeWhenFuture(
-      withItems: (s) async {
-        if (s.isLoad) {
-          if (s.items.isNotEmpty) {
-            await box.clear();
-            await box.addAll(s.items);
-          }
+      load: (s) async {
+        if (s.items.isNotEmpty) {
+          await box.clear();
+          await box.addAll(s.items);
         }
       },
     );

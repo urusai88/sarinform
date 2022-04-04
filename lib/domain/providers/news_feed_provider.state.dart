@@ -2,7 +2,7 @@ part of 'news_feed_provider.dart';
 
 typedef _State = NewsFeedState;
 
-@When(children: [Initial, Loading, Error, WithItems])
+@When(children: [Initial, Loading, Error, Load, Refreshing, LoadingMore, WithItems])
 abstract class NewsFeedState {
   const NewsFeedState();
 
