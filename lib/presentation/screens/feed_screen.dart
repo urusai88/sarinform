@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../data/data.dart';
-import '../../domain/domain.dart';
+import '../../domain/providers/news_feed_provider.dart';
+import '../../domain/utils.dart';
 import '../widgets/widgets.dart';
 import 'news_screen.dart';
 
@@ -34,8 +35,7 @@ class _FeedScreenState extends State<FeedScreen> {
 
   Future<void> _onRefresh() async {
     final prov = context.read<NewsFeedProvider>();
-    final state = prov.value;
-    final isLoad = state is NewsFeedStateLoad;
+    final isLoad = prov.value.maybeMap(withItems: (s) => s.isLoad, orElse: (_) => false);
     final result = await prov.refresh();
     if (!result && isLoad) {
       await _showErrorPopup();
@@ -45,15 +45,11 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<NewsFeedProvider>().value;
-
-    Widget child;
-    if (state is NewsFeedStateError) {
-      child = const ErrorView();
-    } else if (state is NewsFeedStateWithItems) {
-      child = FeedScreenListView(state: state);
-    } else {
-      child = const LoadingView();
-    }
+    final child = state.maybeMap<Widget>(
+      error: (_) => const ErrorView(),
+      withItems: (s) => FeedScreenListView(state: s),
+      orElse: (_) => const LoadingView(),
+    );
 
     return Scaffold(
       appBar: AppBar(),
@@ -68,7 +64,7 @@ class _FeedScreenState extends State<FeedScreen> {
 class FeedScreenListView extends StatelessWidget {
   const FeedScreenListView({Key? key, required this.state}) : super(key: key);
 
-  final NewsFeedStateWithItems state;
+  final WithItems state;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +84,7 @@ class FeedScreenListView extends StatelessWidget {
       separatorBuilder: (_, __) => const Divider(),
       itemBuilder: (context, index) {
         if (state.hasMore && index == itemCount - 1) {
-          if (state is! NewsFeedStateLoadingMore) {
+          if (state is! LoadingMore) {
             Future.microtask(() => context.read<NewsFeedProvider>().loadMore());
           }
           return const LoadingView(padding: EdgeInsets.symmetric(vertical: 32));

@@ -155,6 +155,24 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "3.0.1"
+  copy_with:
+    dependency: "direct main"
+    description:
+      path: "packages/copy_with/copy_with"
+      ref: HEAD
+      resolved-ref: f2300c8f563d9e8e3d08dab906282c7aab0269dc
+      url: "https://github.com/urusai88/spices.git"
+    source: git
+    version: "0.1.0"
+  copy_with_generator:
+    dependency: "direct dev"
+    description:
+      path: "packages/copy_with/copy_with_generator"
+      ref: HEAD
+      resolved-ref: f2300c8f563d9e8e3d08dab906282c7aab0269dc
+      url: "https://github.com/urusai88/spices.git"
+    source: git
+    version: "0.1.0"
   crypto:
     dependency: transitive
     description:
@@ -196,7 +214,7 @@ packages:
       name: extended_image_library
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "3.1.2"
+    version: "3.1.4"
   fake_async:
     dependency: transitive
     description:
@@ -797,7 +815,7 @@ packages:
       name: webview_flutter_android
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.8.3"
+    version: "2.8.4"
   webview_flutter_platform_interface:
     dependency: transitive
     description:
@@ -812,6 +830,24 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.7.1"
+  when:
+    dependency: "direct main"
+    description:
+      path: "packages/when/when"
+      ref: HEAD
+      resolved-ref: f2300c8f563d9e8e3d08dab906282c7aab0269dc
+      url: "https://github.com/urusai88/spices.git"
+    source: git
+    version: "1.0.0"
+  when_generator:
+    dependency: "direct dev"
+    description:
+      path: "packages/when/when_generator"
+      ref: HEAD
+      resolved-ref: f2300c8f563d9e8e3d08dab906282c7aab0269dc
+      url: "https://github.com/urusai88/spices.git"
+    source: git
+    version: "1.0.0"
   win32:
     dependency: transitive
     description:
